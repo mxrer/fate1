@@ -269,7 +269,7 @@ async def unbanall(ctx):
 # SNAP SYSTEM (UPDATED)
 # =========================
 
-SNAP_GIF = "https://tenor.com/view/cat-salut-salute-%D8%A8%D8%B3%D8%A8%D8%B3-%D8%AA%D8%AD%D9%8A%D9%87-gif-11022171827428701157"
+SNAP_GIF = "https://tenor.com/view/cat-salut-salute-%D8%A8%D8%B3%D8%A8%D8%B3-%D8%ت%D8%ح%D9%8A%D9%87-gif-11022171827428701157"
 
 @bot.command()
 async def snap(ctx, member: discord.Member):
@@ -300,6 +300,37 @@ async def unsnap(ctx, user: discord.User):
 
     await ctx.send(f"{user.mention} **Demolished.**")
     await ctx.send(SNAP_GIF)
+
+# =========================
+# VERIFY SYSTEM (NEW)
+# =========================
+
+VERIFY_ROLE_ID = 1538730257853714502
+
+@bot.command()
+async def verify(ctx, member: discord.Member = None):
+    # Reply verify
+    if ctx.message.reference:
+        try:
+            replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+            target = replied_message.author
+        except:
+            return await ctx.send("Could not find the replied message.")
+    else:
+        # Mention verify
+        if member is None:
+            return await ctx.send("Please reply to a message or mention a user.")
+        target = member
+
+    role = ctx.guild.get_role(VERIFY_ROLE_ID)
+    if not role:
+        return await ctx.send("Verify role not found.")
+
+    try:
+        await target.add_roles(role)
+        await ctx.send(f"{target.mention} has been verified.")
+    except:
+        await ctx.send("Failed to verify user.")
 
 # =========================
 # NUKE SYSTEM (BUTTON VERSION)
@@ -403,8 +434,7 @@ async def clean(ctx):
     else:
         await channel.set_permissions(
             ctx.guild.default_role,
-            send_messages=True
-        )
+            send_messages=True)
         await ctx.send("Clean mode disable")
 
 # =========================
