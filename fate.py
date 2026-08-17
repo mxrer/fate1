@@ -348,7 +348,8 @@ class NukeConfirm(View):
 
     @discord.ui.button(label="Approve", style=discord.ButtonStyle.green)
     async def approve(self, interaction: discord.Interaction, button: Button):
-        if interaction.user.id != OWNER_ID:
+        # FIX: Whitelist statt Owner-ID
+        if not is_whitelisted(self.ctx.guild.id, interaction.user.id):
             return await interaction.response.send_message("No.", ephemeral=True)
 
         guild_id = self.ctx.guild.id
@@ -382,7 +383,8 @@ class NukeConfirm(View):
 
     @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
     async def decline(self, interaction: discord.Interaction, button: Button):
-        if interaction.user.id != OWNER_ID:
+        # FIX: Whitelist statt Owner-ID
+        if not is_whitelisted(self.ctx.guild.id, interaction.user.id):
             return await interaction.response.send_message("No.", ephemeral=True)
 
         guild_id = self.ctx.guild.id
