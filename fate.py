@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord.utils import get
 import os
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix=",", intents=intents)
@@ -357,10 +357,17 @@ async def nuke(ctx):
 
     view = NukeConfirm(ctx)
 
-    await ctx.send(
+    msg = await ctx.send(
         f"⚠️ **Are you sure to nuke this channel?**",
         view=view
     )
+
+    # Auto-delete after 3 seconds
+    await discord.utils.sleep_until(datetime.utcnow() + timedelta(seconds=3))
+    try:
+        await msg.delete()
+    except:
+        pass
 
 
 # =========================
