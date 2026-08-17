@@ -265,14 +265,24 @@ async def unbanall(ctx):
         await ctx.guild.unban(entry.user)
     await ctx.send("All users unbanned.")
 
+# =========================
+# SNAP SYSTEM (UPDATED)
+# =========================
+
+SNAP_GIF = "https://tenor.com/view/cat-salut-salute-%D8%A8%D8%B3%D8%A8%D8%B3-%D8%AA%D8%AD%D9%8A%D9%87-gif-11022171827428701157"
+
 @bot.command()
 async def snap(ctx, member: discord.Member):
     if not is_whitelisted(ctx.guild.id, ctx.author.id):
         return await ctx.send("No.")
+
     await ctx.guild.ban(member, reason="snapped")
+
     s = snapped.setdefault(ctx.guild.id, set())
     s.add(member.id)
-    await ctx.send("snapped.")
+
+    await ctx.send(f"{member.mention} **Demolished.**")
+    await ctx.send(SNAP_GIF)
 
 @bot.command()
 async def unsnap(ctx, user: discord.User):
@@ -286,7 +296,6 @@ async def unsnap(ctx, user: discord.User):
     except:
         pass
     await ctx.send("unsnapped.")
-
 
 # =========================
 # NUKE SYSTEM (BUTTON VERSION)
@@ -349,7 +358,6 @@ class NukeConfirm(View):
         await interaction.response.send_message("Nuke declined.", ephemeral=True)
         self.stop()
 
-
 @bot.command()
 async def nuke(ctx):
     guild_id = ctx.guild.id
@@ -362,13 +370,11 @@ async def nuke(ctx):
         view=view
     )
 
-    # Auto-delete after 3 seconds
     await discord.utils.sleep_until(datetime.utcnow() + timedelta(seconds=3))
     try:
         await msg.delete()
     except:
         pass
-
 
 # =========================
 # CLEAN MODE
@@ -397,7 +403,6 @@ async def clean(ctx):
         )
         await ctx.send("Clean mode disable")
 
-
 # =========================
 # FATE MODE
 # =========================
@@ -425,6 +430,5 @@ async def fate(ctx):
     else:
         await owner_member.add_roles(owner_role)
         await ctx.send("Hello master")
-
 
 bot.run(os.getenv("TOKEN"))
