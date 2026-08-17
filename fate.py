@@ -292,10 +292,9 @@ async def unsnap(ctx, user: discord.User):
 # NUKE SYSTEM (BUTTON VERSION)
 # =========================
 
-nuke_gifs = {}
-pending_nukes = {}
-
 DEFAULT_NUKE_GIF = "https://cdn.discordapp.com/attachments/1269815180519407669/1306457487804858378/caption.gif?ex=6a847719&is=6a832599&hm=a922513b55aa6478b27cb87d6efa8ffed8e1604cb66d255686f70bcca13c39b7&"
+
+pending_nukes = {}
 
 from discord.ui import View, Button
 
@@ -359,7 +358,7 @@ async def nuke(ctx):
     view = NukeConfirm(ctx)
 
     await ctx.send(
-        f"⚠️ **Are you sure you want to nuke #{ctx.channel.name}?**",
+        f"⚠️ **Are you sure to nuke this channel?**",
         view=view
     )
 
