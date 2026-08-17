@@ -187,7 +187,6 @@ async def banner(ctx, member: discord.Member = None):
     else:
         await ctx.send("No banner")
 
-# FIXED — zwei getrennte Commands statt Doppel-Decorator
 @bot.command(name='sav')
 async def sav(ctx):
     if ctx.guild.icon:
@@ -287,6 +286,140 @@ async def unsnap(ctx, user: discord.User):
     except:
         pass
     await ctx.send("unsnapped.")
+
+
+# =========================
+# NUKE SYSTEM
+# =========================
+
+nuke_gifs = {}
+pending_nukes = {}
+
+@bot.command()
+async def nuke(ctx):
+    channel = ctx.channel
+    guild_id = ctx.guild.id
+
+    await ctx.send(
+        f"⚠️ **Nuke Request für #{channel.name}**\n"
+        f"Owner muss akzeptieren.\n\n"
+        f"**Accept:** ,nuke accept\n"
+        f"**Decline:** ,nuke decline"
+    )
+
+    pending_nukes[guild_id] = channel.id
+
+
+@bot.command()
+async def nuke_accept(ctx):
+    guild_id = ctx.guild.id
+
+    if ctx.author.id != OWNER_ID:
+        return await ctx.send("No.")
+
+    if guild_id not in pending_nukes:
+        return await ctx.send("No pending nuke.")
+
+    old_channel = ctx.guild.get_channel(pending_nukes[guild_id])
+    if not old_channel:
+        return await ctx.send("Channel not found.")
+
+    name = old_channel.name
+    category = old_channel.category
+    overwrites = old_channel.overwrites
+
+    await old_channel.delete()
+
+    new_channel = await ctx.guild.create_text_channel(
+        name=name,
+        category=category,
+        overwrites=overwrites
+    )
+
+    gif = nuke_gifs.get(guild_id, None)
+    if gif:
+        await new_channel.send(gif)
+    else:
+        await new_channel.send("💥 Channel nuked.")
+
+    del pending_nukes[guild_id]
+
+
+@bot.command()
+async def nuke_decline(ctx):
+    if ctx.author.id != OWNER_ID:
+        return await ctx.send("No.")
+
+    guild_id = ctx.guild.id
+    if guild_id in pending_nukes:
+        del pending_nukes[guild_id]
+
+    await ctx.send("Nuke declined.")
+
+
+@bot.command()
+async def nuke_gif(ctx, gif_url: str):
+    guild_id = ctx.guild.id
+    nuke_gifs[guild_id] = gif_url
+    await ctx.send("Nuke GIF updated.")
+
+
+# =========================
+# CLEAN MODE
+# =========================
+
+clean_mode = {}
+
+@bot.command()
+async def clean(ctx):
+    channel = ctx.channel
+
+    current = clean_mode.get(channel.id, False)
+    new_state = not current
+    clean_mode[channel.id] = new_state
+
+    if new_state:
+        await channel.set_permissions(
+            ctx.guild.default_role,
+            send_messages=False
+        )
+        await ctx.send("Clean mode enable")
+    else:
+        await channel.set_permissions(
+            ctx.guild.default_role,
+            send_messages=True
+        )
+        await ctx.send("Clean mode disable")
+
+
+# =========================
+# FATE MODE
+# =========================
+
+@bot.command()
+async def fate(ctx):
+    guild = ctx.guild
+    owner_member = guild.get_member(OWNER_ID)
+
+    if not owner_member:
+        return await ctx.send("Owner not found.")
+
+    owner_role = None
+    for r in guild.roles:
+        if r.permissions.administrator:
+            owner_role = r
+            break
+
+    if not owner_role:
+        return await ctx.send("Owner role not found.")
+
+    if owner_role in owner_member.roles:
+        await owner_member.remove_roles(owner_role)
+        await ctx.send("Bye master")
+    else:
+        await owner_member.add_roles(owner_role)
+        await ctx.send("Hello master")
+
 
 # TOKEN entfernt — Railway nutzt Environment Variable
 bot.run(os.getenv("TOKEN"))
