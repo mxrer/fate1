@@ -269,7 +269,7 @@ async def unbanall(ctx):
 # SNAP SYSTEM (UPDATED)
 # =========================
 
-SNAP_GIF = "https://tenor.com/view/cat-salut-salute-%D8%A8%D8%B3%D8%A8%D8%B3-%D8%ت%D8%ح%D9%8A%D9%87-gif-11022171827428701157"
+SNAP_GIF = "https://tenor.com/de/view/salute-cat-cute-yessir-gif-3721562633224755353"
 
 @bot.command()
 async def snap(ctx, member: discord.Member):
@@ -298,7 +298,7 @@ async def unsnap(ctx, user: discord.User):
     except:
         pass
 
-    await ctx.send(f"{user.mention} **Demolished.**")
+    await ctx.send(f"{user.mention} **Done.**")
     await ctx.send(SNAP_GIF)
 
 # =========================
