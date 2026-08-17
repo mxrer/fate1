@@ -289,79 +289,85 @@ async def unsnap(ctx, user: discord.User):
 
 
 # =========================
-# NUKE SYSTEM
+# NUKE SYSTEM (BUTTON VERSION)
 # =========================
 
 nuke_gifs = {}
 pending_nukes = {}
 
-@bot.command()
-async def nuke(ctx):
-    channel = ctx.channel
-    guild_id = ctx.guild.id
+# Dein GIF wird automatisch gesetzt:
+DEFAULT_NUKE_GIF = "https://cdn.discordapp.com/attachments/1269815180519407669/1306457487804858378/caption.gif?ex=6a847719&is=6a832599&hm=a922513b55aa6478b27cb87d6efa8ffed8e1604cb66d255686f70bcca13c39b7&"
 
-    await ctx.send(
-        f"⚠️ **Nuke Request für #{channel.name}**\n"
-        f"Owner muss akzeptieren.\n\n"
-        f"**Accept:** ,nuke accept\n"
-        f"**Decline:** ,nuke decline"
-    )
+from discord.ui import View, Button
 
-    pending_nukes[guild_id] = channel.id
+class NukeConfirm(View):
+    def __init__(self, ctx):
+        super().__init__(timeout=30)
+        self.ctx = ctx
 
+    @discord.ui.button(label="Approve", style=discord.ButtonStyle.green)
+    async def approve(self, interaction: discord.Interaction, button: Button):
+        if interaction.user.id != OWNER_ID:
+            return await interaction.response.send_message("No.", ephemeral=True)
 
-@bot.command()
-async def nuke_accept(ctx):
-    guild_id = ctx.guild.id
+        guild_id = self.ctx.guild.id
+        channel_id = pending_nukes.get(guild_id)
 
-    if ctx.author.id != OWNER_ID:
-        return await ctx.send("No.")
+        if not channel_id:
+            return await interaction.response.send_message("No pending nuke.", ephemeral=True)
 
-    if guild_id not in pending_nukes:
-        return await ctx.send("No pending nuke.")
+        old_channel = discord.utils.get(self.ctx.guild.channels, id=channel_id)
+        if not old_channel:
+            return await interaction.response.send_message("Channel not found.", ephemeral=True)
 
-    old_channel = ctx.guild.get_channel(pending_nukes[guild_id])
-    if not old_channel:
-        return await ctx.send("Channel not found.")
+        # Channel-Daten sichern
+        name = old_channel.name
+        category = old_channel.category
+        overwrites = old_channel.overwrites
 
-    name = old_channel.name
-    category = old_channel.category
-    overwrites = old_channel.overwrites
+        # Alten Channel löschen
+        await old_channel.delete()
 
-    await old_channel.delete()
+        # Neuen Channel erstellen
+        new_channel = await self.ctx.guild.create_text_channel(
+            name=name,
+            category=category,
+            overwrites=overwrites
+        )
 
-    new_channel = await ctx.guild.create_text_channel(
-        name=name,
-        category=category,
-        overwrites=overwrites
-    )
+        # GIF IM NEUEN CHANNEL SENDEN
+        await new_channel.send(DEFAULT_NUKE_GIF)
 
-    gif = nuke_gifs.get(guild_id, None)
-    if gif:
-        await new_channel.send(gif)
-    else:
-        await new_channel.send("💥 Channel nuked.")
-
-    del pending_nukes[guild_id]
-
-
-@bot.command()
-async def nuke_decline(ctx):
-    if ctx.author.id != OWNER_ID:
-        return await ctx.send("No.")
-
-    guild_id = ctx.guild.id
-    if guild_id in pending_nukes:
         del pending_nukes[guild_id]
 
-    await ctx.send("Nuke declined.")
+        await interaction.response.send_message("Nuke executed.", ephemeral=True)
+        self.stop()
+
+    @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
+    async def decline(self, interaction: discord.Interaction, button: Button):
+        if interaction.user.id != OWNER_ID:
+            return await interaction.response.send_message("No.", ephemeral=True)
+
+        guild_id = self.ctx.guild.id
+        if guild_id in pending_nukes:
+            del pending_nukes[guild_id]
+
+        await interaction.response.send_message("Nuke declined.", ephemeral=True)
+        self.stop()
 
 
 @bot.command()
-async def nuke_gif(ctx, gif_url: str):
+async def nuke(ctx):
     guild_id = ctx.guild.id
-    nuke_gifs[guild_id] = gif_url
-    await ctx.send("Nuke GIF updated.")
+    pending_nukes[guild_id] = ctx.channel.id
+
+    view = NukeConfirm(ctx)
+
+    await ctx.send(
+        f"⚠️ **Are you sure you want to nuke #{ctx.channel.name}?**",
+        view=view
+    )
+
 
 
 # =========================
