@@ -288,14 +288,18 @@ async def snap(ctx, member: discord.Member):
 async def unsnap(ctx, user: discord.User):
     if not is_whitelisted(ctx.guild.id, ctx.author.id):
         return await ctx.send("No.")
+
     s = snapped.get(ctx.guild.id, set())
     if user.id in s:
         s.remove(user.id)
+
     try:
         await ctx.guild.unban(user)
     except:
         pass
-    await ctx.send("unsnapped.")
+
+    await ctx.send(f"{user.mention} **Demolished.**")
+    await ctx.send(SNAP_GIF)
 
 # =========================
 # NUKE SYSTEM (BUTTON VERSION)
