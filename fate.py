@@ -295,7 +295,6 @@ async def unsnap(ctx, user: discord.User):
 nuke_gifs = {}
 pending_nukes = {}
 
-# Dein GIF wird automatisch gesetzt:
 DEFAULT_NUKE_GIF = "https://cdn.discordapp.com/attachments/1269815180519407669/1306457487804858378/caption.gif?ex=6a847719&is=6a832599&hm=a922513b55aa6478b27cb87d6efa8ffed8e1604cb66d255686f70bcca13c39b7&"
 
 from discord.ui import View, Button
@@ -320,22 +319,18 @@ class NukeConfirm(View):
         if not old_channel:
             return await interaction.response.send_message("Channel not found.", ephemeral=True)
 
-        # Channel-Daten sichern
         name = old_channel.name
         category = old_channel.category
         overwrites = old_channel.overwrites
 
-        # Alten Channel löschen
         await old_channel.delete()
 
-        # Neuen Channel erstellen
         new_channel = await self.ctx.guild.create_text_channel(
             name=name,
             category=category,
             overwrites=overwrites
         )
 
-        # GIF IM NEUEN CHANNEL SENDEN
         await new_channel.send(DEFAULT_NUKE_GIF)
 
         del pending_nukes[guild_id]
@@ -367,7 +362,6 @@ async def nuke(ctx):
         f"⚠️ **Are you sure you want to nuke #{ctx.channel.name}?**",
         view=view
     )
-
 
 
 # =========================
@@ -427,5 +421,4 @@ async def fate(ctx):
         await ctx.send("Hello master")
 
 
-# TOKEN entfernt — Railway nutzt Environment Variable
 bot.run(os.getenv("TOKEN"))
