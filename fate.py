@@ -325,7 +325,7 @@ async def verify(ctx, member: discord.Member = None):
         await ctx.send("Failed to verify user.")
 
 # =========================
-# NUKE SYSTEM
+# NUKE SYSTEM (FIXED)
 # =========================
 
 DEFAULT_NUKE_GIF = "https://cdn.discordapp.com/attachments/1269815180519407669/1306457487804858378/caption.gif"
@@ -341,7 +341,9 @@ class NukeConfirm(View):
 
     @discord.ui.button(label="Approve", style=discord.ButtonStyle.green)
     async def approve(self, interaction: discord.Interaction, button: Button):
-        if not wlcheck(interaction):
+
+        # FIXED WHITELIST CHECK
+        if interaction.user.id != OWNER_ID and not is_whitelisted(self.ctx.guild.id, interaction.user.id):
             return await interaction.response.send_message("No.", ephemeral=True)
 
         guild_id = self.ctx.guild.id
@@ -375,7 +377,9 @@ class NukeConfirm(View):
 
     @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
     async def decline(self, interaction: discord.Interaction, button: Button):
-        if not wlcheck(interaction):
+
+        # FIXED WHITELIST CHECK
+        if interaction.user.id != OWNER_ID and not is_whitelisted(self.ctx.guild.id, interaction.user.id):
             return await interaction.response.send_message("No.", ephemeral=True)
 
         guild_id = self.ctx.guild.id
@@ -403,6 +407,7 @@ async def nuke(ctx):
         await msg.delete()
     except:
         pass
+
 
 # =========================
 # CLEAN MODE
