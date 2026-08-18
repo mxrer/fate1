@@ -39,6 +39,14 @@ def save_whitelist(guild_id):
 def is_whitelisted(guild_id, user_id):
     return user_id in load_whitelist(guild_id)
 
+# =========================
+# OWNER ALWAYS ALLOWED
+# =========================
+def wlcheck(ctx):
+    if ctx.author.id == OWNER_ID:
+        return True
+    return is_whitelisted(ctx.guild.id, ctx.author.id)
+
 def load_autorole(guild_id):
     path = f"autoroles/{guild_id}.txt"
     if os.path.exists(path):
@@ -98,9 +106,8 @@ async def on_member_unban(guild, user):
             pass
 
 @bot.command()
+@commands.check(wlcheck)
 async def wladd(ctx, member: discord.Member):
-    if ctx.author.id != OWNER_ID:
-        return await ctx.send("No.")
     wl = load_whitelist(ctx.guild.id)
     if member.id in wl:
         wl.remove(member.id)
@@ -111,9 +118,8 @@ async def wladd(ctx, member: discord.Member):
     save_whitelist(ctx.guild.id)
 
 @bot.command()
+@commands.check(wlcheck)
 async def wllist(ctx):
-    if ctx.author.id != OWNER_ID:
-        return await ctx.send("No.")
     wl = load_whitelist(ctx.guild.id)
     if not wl:
         await ctx.send("Whitelist is empty.")
@@ -122,18 +128,16 @@ async def wllist(ctx):
         await ctx.send("Whitelist:\n" + "\n".join(users))
 
 @bot.command()
+@commands.check(wlcheck)
 async def purge(ctx, amount: int):
-    if not ctx.author.guild_permissions.manage_messages:
-        return await ctx.send("No.")
     if amount < 1 or amount > 1000:
         return await ctx.send("No.")
     await ctx.channel.purge(limit=amount)
     await ctx.send(f"Purged {amount} messages.", delete_after=5)
 
 @bot.command()
+@commands.check(wlcheck)
 async def autorole(ctx, role_id: int):
-    if not ctx.author.guild_permissions.manage_guild:
-        return await ctx.send("No.")
     role = ctx.guild.get_role(role_id)
     if not role:
         return await ctx.send("No.")
@@ -141,6 +145,7 @@ async def autorole(ctx, role_id: int):
     await ctx.send(f"Autorole set to {role.name}")
 
 @bot.command()
+@commands.check(wlcheck)
 async def serverinfo(ctx):
     guild = ctx.guild
     member_count = guild.member_count
@@ -151,6 +156,7 @@ async def serverinfo(ctx):
     await ctx.send(f"Server: {guild.name}\nMembers: {member_count}\nChannels: {channel_count}\nCreated: {created_at}\nBoost Level: {boost_level}\nBoosts: {boost_count}")
 
 @bot.command()
+@commands.check(wlcheck)
 async def userinfo(ctx, member: discord.Member):
     roles = ", ".join([r.name for r in member.roles if r.name != "@everyone"]) or "None"
     joined = member.joined_at.strftime("%Y-%m-%d %H:%M:%S") if member.joined_at else "Unknown"
@@ -159,9 +165,8 @@ async def userinfo(ctx, member: discord.Member):
     await ctx.send(f"User: {member}\nID: {member.id}\nRoles: {roles}\nJoined: {joined}\nCreated: {created}\nTimed out: {timeout}")
 
 @bot.command()
+@commands.check(wlcheck)
 async def role(ctx, action, member: discord.Member, *, role_name):
-    if not ctx.author.guild_permissions.manage_roles:
-        return await ctx.send("No.")
     role = get(ctx.guild.roles, name=role_name)
     if not role:
         return await ctx.send("Role not found.")
@@ -175,11 +180,13 @@ async def role(ctx, action, member: discord.Member, *, role_name):
         await ctx.send("Use add or remove.")
 
 @bot.command()
+@commands.check(wlcheck)
 async def avatar(ctx, member: discord.Member = None):
     member = member or ctx.author
     await ctx.send(member.display_avatar.url)
 
 @bot.command()
+@commands.check(wlcheck)
 async def banner(ctx, member: discord.Member = None):
     member = member or ctx.author
     if member.banner:
@@ -188,6 +195,7 @@ async def banner(ctx, member: discord.Member = None):
         await ctx.send("No banner")
 
 @bot.command(name='sav')
+@commands.check(wlcheck)
 async def sav(ctx):
     if ctx.guild.icon:
         await ctx.send(ctx.guild.icon.url)
@@ -195,6 +203,7 @@ async def sav(ctx):
         await ctx.send("No icon")
 
 @bot.command(name='sab')
+@commands.check(wlcheck)
 async def sab(ctx):
     if ctx.guild.icon:
         await ctx.send(ctx.guild.icon.url)
@@ -202,23 +211,20 @@ async def sab(ctx):
         await ctx.send("No icon")
 
 @bot.command()
+@commands.check(wlcheck)
 async def lock(ctx):
-    if not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
     await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=False)
     await ctx.send("Channel locked.")
 
 @bot.command()
+@commands.check(wlcheck)
 async def unlock(ctx):
-    if not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
     await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=True)
     await ctx.send("Channel unlocked.")
 
 @bot.command()
+@commands.check(wlcheck)
 async def timeout(ctx, member: discord.Member, duration: str):
-    if not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
     delta = parse_duration(duration)
     if not delta:
         return await ctx.send("No.")
@@ -226,30 +232,26 @@ async def timeout(ctx, member: discord.Member, duration: str):
     await ctx.send(f"{member.mention} timed out.")
 
 @bot.command()
+@commands.check(wlcheck)
 async def untimeout(ctx, member: discord.Member):
-    if not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
     await member.timeout(None, reason=None)
     await ctx.send(f"{member.mention} untimed out.")
 
 @bot.command()
+@commands.check(wlcheck)
 async def kick(ctx, member: discord.Member, *, reason=None):
-    if not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
     await member.kick(reason=reason)
     await ctx.send(f"{member.mention} kicked.")
 
 @bot.command()
+@commands.check(wlcheck)
 async def ban(ctx, member: discord.Member, *, reason=None):
-    if not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
     await member.ban(reason=reason)
     await ctx.send(f"{member.mention} banned.")
 
 @bot.command()
+@commands.check(wlcheck)
 async def unban(ctx, user: discord.User):
-    if not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
     try:
         await ctx.guild.unban(user)
         await ctx.send(f"{user} unbanned.")
@@ -257,58 +259,50 @@ async def unban(ctx, user: discord.User):
         await ctx.send("Unban failed.")
 
 @bot.command()
+@commands.check(wlcheck)
 async def unbanall(ctx):
-    if not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
     bans = await ctx.guild.bans()
     for entry in bans:
         await ctx.guild.unban(entry.user)
     await ctx.send("All users unbanned.")
 
 # =========================
-# SNAP SYSTEM (UPDATED)
+# SNAP SYSTEM
 # =========================
 
 SNAP_GIF = "https://tenor.com/view/salute-cat-cute-yessir-gif-3721562633224755353"
 
 @bot.command()
+@commands.check(wlcheck)
 async def snap(ctx, member: discord.Member):
-    if not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
-
     await ctx.guild.ban(member, reason="snapped")
-
     s = snapped.setdefault(ctx.guild.id, set())
     s.add(member.id)
-
     await ctx.send(f"{member.mention} **Demolished.**")
     await ctx.send(SNAP_GIF)
 
 @bot.command()
+@commands.check(wlcheck)
 async def unsnap(ctx, user: discord.User):
-    if not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
-
     s = snapped.get(ctx.guild.id, set())
     if user.id in s:
         s.remove(user.id)
-
     try:
         await ctx.guild.unban(user)
     except:
         pass
-
     await ctx.send(f"{user.mention} **Done.**")
     await ctx.send(SNAP_GIF)
+
 # =========================
-# VERIFY SYSTEM (NEW)
+# VERIFY SYSTEM
 # =========================
 
 VERIFY_ROLE_ID = 1538730257853714502
 
 @bot.command()
+@commands.check(wlcheck)
 async def verify(ctx, member: discord.Member = None):
-    # Reply verify
     if ctx.message.reference:
         try:
             replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
@@ -316,7 +310,6 @@ async def verify(ctx, member: discord.Member = None):
         except:
             return await ctx.send("Could not find the replied message.")
     else:
-        # Mention verify
         if member is None:
             return await ctx.send("Please reply to a message or mention a user.")
         target = member
@@ -332,10 +325,10 @@ async def verify(ctx, member: discord.Member = None):
         await ctx.send("Failed to verify user.")
 
 # =========================
-# NUKE SYSTEM (BUTTON VERSION)
+# NUKE SYSTEM
 # =========================
 
-DEFAULT_NUKE_GIF = "https://cdn.discordapp.com/attachments/1269815180519407669/1306457487804858378/caption.gif?ex=6a847719&is=6a832599&hm=a922513b55aa6478b27cb87d6efa8ffed8e1604cb66d255686f70bcca13c39b7&"
+DEFAULT_NUKE_GIF = "https://cdn.discordapp.com/attachments/1269815180519407669/1306457487804858378/caption.gif"
 
 pending_nukes = {}
 
@@ -348,8 +341,7 @@ class NukeConfirm(View):
 
     @discord.ui.button(label="Approve", style=discord.ButtonStyle.green)
     async def approve(self, interaction: discord.Interaction, button: Button):
-        # FIX: Whitelist statt Owner-ID
-        if not is_whitelisted(self.ctx.guild.id, interaction.user.id):
+        if not wlcheck(interaction):
             return await interaction.response.send_message("No.", ephemeral=True)
 
         guild_id = self.ctx.guild.id
@@ -383,8 +375,7 @@ class NukeConfirm(View):
 
     @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
     async def decline(self, interaction: discord.Interaction, button: Button):
-        # FIX: Whitelist statt Owner-ID
-        if not is_whitelisted(self.ctx.guild.id, interaction.user.id):
+        if not wlcheck(interaction):
             return await interaction.response.send_message("No.", ephemeral=True)
 
         guild_id = self.ctx.guild.id
@@ -395,6 +386,7 @@ class NukeConfirm(View):
         self.stop()
 
 @bot.command()
+@commands.check(wlcheck)
 async def nuke(ctx):
     guild_id = ctx.guild.id
     pending_nukes[guild_id] = ctx.channel.id
@@ -419,6 +411,7 @@ async def nuke(ctx):
 clean_mode = {}
 
 @bot.command()
+@commands.check(wlcheck)
 async def clean(ctx):
     channel = ctx.channel
 
@@ -443,6 +436,7 @@ async def clean(ctx):
 # =========================
 
 @bot.command()
+@commands.check(wlcheck)
 async def fate(ctx):
     guild = ctx.guild
     owner_member = guild.get_member(OWNER_ID)
