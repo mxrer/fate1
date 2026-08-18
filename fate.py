@@ -460,4 +460,56 @@ async def fate(ctx):
         await owner_member.add_roles(owner_role)
         await ctx.send("Hello master")
 
+# =========================
+# REPLY ROLE SYSTEM (ADD / REMOVE)
+# =========================
+
+async def give_or_remove_reply_role(ctx, role_name):
+    # Owner always allowed
+    if ctx.author.id != OWNER_ID and not is_whitelisted(ctx.guild.id, ctx.author.id):
+        return await ctx.send("No.")
+
+    # Check if user replied to a message
+    if ctx.message.reference:
+        try:
+            replied = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+            target = replied.author
+        except:
+            return await ctx.send("Could not find replied message.")
+
+        # Find role
+        role = get(ctx.guild.roles, name=role_name)
+        if not role:
+            return await ctx.send(f"Role '{role_name}' not found.")
+
+        # Check if user already has the role
+        if role in target.roles:
+            await target.remove_roles(role)
+            return await ctx.send(f"Removed role {role_name}.")
+        else:
+            await target.add_roles(role)
+            return await ctx.send(f"Added role {role_name}.")
+    
+    return await ctx.send("Reply to a message to give or remove the role.")
+
+# =========================
+# REPLY ROLE COMMANDS
+# =========================
+
+@bot.command()
+async def pic(ctx):
+    await give_or_remove_reply_role(ctx, "pic")
+
+@bot.command()
+async def mod(ctx):
+    await give_or_remove_reply_role(ctx, "mod")
+
+@bot.command()
+async def vip(ctx):
+    await give_or_remove_reply_role(ctx, "vip")
+
+@bot.command()
+async def owner(ctx):
+    await give_or_remove_reply_role(ctx, "owner")
+
 bot.run(os.getenv("TOKEN"))
