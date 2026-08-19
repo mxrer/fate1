@@ -105,8 +105,8 @@ async def on_member_join(member):
     if role:
         await member.add_roles(role)
 
-    verify_channel_id = load_verify_channel()
-    verify_channel = member.guild.get_channel(verify_channel_id)
+    # 🔥 FIX: Immer den Channel nehmen, der "verify" heißt
+    verify_channel = discord.utils.get(member.guild.channels, name="verify")
 
     commander_role = member.guild.get_role(COMMANDER_ROLE_ID)
 
