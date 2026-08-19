@@ -10,6 +10,62 @@ bot = commands.Bot(command_prefix=",", intents=intents)
 OWNER_ID = 1477802548189593864
 AUTO_ROLE_NAME = "1538730480466141335"
 
+whitelists = {}
+snapped = {}
+os.makedirs("whitelists", exist_ok=True)
+os.makedirs("autoroles", exist_ok=True)
+
+# =========================
+# WHITELIST CHECK
+# =========================
+
+def load_whitelist(guild_id):
+    if guild_id in whitelists:
+        return whitelists[guild_id]
+    path = f"whitelists/{guild_id}.txt"
+    s = set()
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line.isdigit():
+                    s.add(int(line))
+    whitelists[guild_id] = s
+    return s
+
+def save_whitelist(guild_id):
+    s = whitelists.get(guild_id, set())
+    path = f"whitelists/{guild_id}.txt"
+    with open(path, "w") as f:
+        for uid in s:
+            f.write(str(uid) + "\n")
+
+def is_whitelisted(guild_id, user_id):
+    return user_id in load_whitelist(guild_id)
+
+def wlcheck(ctx):
+    if ctx.author.id == OWNER_ID:
+        return True
+    return is_whitelisted(ctx.guild.id, ctx.author.id)
+
+# =========================
+# AUTOROLE SYSTEM
+# =========================
+
+def load_autorole(guild_id):
+    path = f"autoroles/{guild_id}.txt"
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            content = f.read().strip()
+            if content.isdigit():
+                return int(content)
+    return None
+
+def save_autorole(guild_id, role_id):
+    path = f"autoroles/{guild_id}.txt"
+    with open(path, "w") as f:
+        f.write(str(role_id))
+
 # =========================
 # VERIFY CHANNEL AUTO-SAVE SYSTEM
 # =========================
@@ -28,12 +84,11 @@ def load_verify_channel():
                 return int(content)
     return None
 
-# Initialer Verify-Channel (falls Datei leer)
 if load_verify_channel() is None:
     save_verify_channel(1539260969019248690)
 
 # =========================
-# WELCOME SYSTEM (JOIN MESSAGE + JOIN/LEAVE LOGS)
+# WELCOME SYSTEM (JOIN + LEAVE LOGS)
 # =========================
 
 COMMANDER_ROLE_ID = 1538721709798981687
@@ -41,7 +96,6 @@ LOG_CHANNEL_ID = 1539479412775452713
 
 @bot.event
 async def on_member_join(member):
-    # Autorole bleibt bestehen
     role_id = load_autorole(member.guild.id)
     role = None
     if role_id:
@@ -51,11 +105,8 @@ async def on_member_join(member):
     if role:
         await member.add_roles(role)
 
-    # Verify-Channel automatisch laden
     verify_channel_id = load_verify_channel()
-    verify_channel = None
-    if verify_channel_id:
-        verify_channel = member.guild.get_channel(verify_channel_id)
+    verify_channel = member.guild.get_channel(verify_channel_id)
 
     commander_role = member.guild.get_role(COMMANDER_ROLE_ID)
 
@@ -64,11 +115,10 @@ async def on_member_join(member):
             f"Hello {member.mention} — Ping {commander_role.mention} to get verified."
         )
 
-    # JOIN LOG
     log_channel = member.guild.get_channel(LOG_CHANNEL_ID)
     if log_channel:
         created = member.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        account_age_days = (datetime.utcnow() - member.created_at).days
+        age_days = (datetime.utcnow() - member.created_at).days
         join_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
         await log_channel.send(
@@ -76,17 +126,16 @@ async def on_member_join(member):
             f"**User:** {member} ({member.mention})\n"
             f"**ID:** `{member.id}`\n"
             f"**Account Created:** {created}\n"
-            f"**Account Age:** {account_age_days} days\n"
+            f"**Account Age:** {age_days} days\n"
             f"**Joined At:** {join_time}"
         )
 
 @bot.event
 async def on_member_remove(member):
-    # LEAVE LOG
     log_channel = member.guild.get_channel(LOG_CHANNEL_ID)
     if log_channel:
         created = member.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        account_age_days = (datetime.utcnow() - member.created_at).days
+        age_days = (datetime.utcnow() - member.created_at).days
         leave_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
         await log_channel.send(
@@ -94,9 +143,14 @@ async def on_member_remove(member):
             f"**User:** {member}\n"
             f"**ID:** `{member.id}`\n"
             f"**Account Created:** {created}\n"
-            f"**Account Age:** {account_age_days} days\n"
+            f"**Account Age:** {age_days} days\n"
             f"**Left At:** {leave_time}"
         )
+
+# =========================
+# UNBAN SNAP FIX
+# =========================
+
 @bot.event
 async def on_member_unban(guild, user):
     s = snapped.get(guild.id)
@@ -105,6 +159,10 @@ async def on_member_unban(guild, user):
             await guild.ban(user, reason="re-snapped")
         except:
             pass
+
+# =========================
+# WHITELIST COMMANDS
+# =========================
 
 @bot.command()
 @commands.check(wlcheck)
@@ -128,6 +186,10 @@ async def wllist(ctx):
         users = [f"<@{uid}>" for uid in wl]
         await ctx.send("Whitelist:\n" + "\n".join(users))
 
+# =========================
+# MODERATION COMMANDS
+# =========================
+
 @bot.command()
 @commands.check(wlcheck)
 async def purge(ctx, amount: int):
@@ -149,12 +211,14 @@ async def autorole(ctx, role_id: int):
 @commands.check(wlcheck)
 async def serverinfo(ctx):
     guild = ctx.guild
-    member_count = guild.member_count
-    channel_count = len(guild.channels)
-    created_at = guild.created_at.strftime("%Y-%m-%d %H:%M:%S")
-    boost_level = guild.premium_tier
-    boost_count = guild.premium_subscription_count or 0
-    await ctx.send(f"Server: {guild.name}\nMembers: {member_count}\nChannels: {channel_count}\nCreated: {created_at}\nBoost Level: {boost_level}\nBoosts: {boost_count}")
+    await ctx.send(
+        f"Server: {guild.name}\n"
+        f"Members: {guild.member_count}\n"
+        f"Channels: {len(guild.channels)}\n"
+        f"Created: {guild.created_at.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"Boost Level: {guild.premium_tier}\n"
+        f"Boosts: {guild.premium_subscription_count or 0}"
+    )
 
 @bot.command()
 @commands.check(wlcheck)
@@ -163,7 +227,9 @@ async def userinfo(ctx, member: discord.Member):
     joined = member.joined_at.strftime("%Y-%m-%d %H:%M:%S") if member.joined_at else "Unknown"
     created = member.created_at.strftime("%Y-%m-%d %H:%M:%S")
     timeout = "Yes" if member.is_timed_out() else "No"
-    await ctx.send(f"User: {member}\nID: {member.id}\nRoles: {roles}\nJoined: {joined}\nCreated: {created}\nTimed out: {timeout}")
+    await ctx.send(
+        f"User: {member}\nID: {member.id}\nRoles: {roles}\nJoined: {joined}\nCreated: {created}\nTimed out: {timeout}"
+    )
 
 @bot.command()
 @commands.check(wlcheck)
@@ -226,8 +292,9 @@ async def unlock(ctx):
 @bot.command()
 @commands.check(wlcheck)
 async def timeout(ctx, member: discord.Member, duration: str):
-    delta = parse_duration(duration)
-    if not delta:
+    try:
+        delta = timedelta(minutes=int(duration))
+    except:
         return await ctx.send("No.")
     await member.timeout(delta, reason=None)
     await ctx.send(f"{member.mention} timed out.")
@@ -324,6 +391,7 @@ async def verify(ctx, member: discord.Member = None):
         await ctx.send(f"{target.mention} has been verified.")
     except:
         await ctx.send("Failed to verify user.")
+
 # =========================
 # NUKE SYSTEM (AUTO VERIFY CHANNEL UPDATE)
 # =========================
@@ -342,7 +410,6 @@ class NukeConfirm(View):
     @discord.ui.button(label="Approve", style=discord.ButtonStyle.green)
     async def approve(self, interaction: discord.Interaction, button: Button):
 
-        # FIXED WHITELIST CHECK
         if interaction.user.id != OWNER_ID and not is_whitelisted(self.ctx.guild.id, interaction.user.id):
             return await interaction.response.send_message("No.", ephemeral=True)
 
@@ -360,23 +427,18 @@ class NukeConfirm(View):
         category = old_channel.category
         overwrites = old_channel.overwrites
 
-        # DELETE OLD CHANNEL
         await old_channel.delete()
 
-        # CREATE NEW CHANNEL
         new_channel = await self.ctx.guild.create_text_channel(
             name=name,
             category=category,
             overwrites=overwrites
         )
 
-        # 🔥 AUTO-SAVE VERIFY CHANNEL ID
         save_verify_channel(new_channel.id)
 
-        # SEND NUKE GIF
         await new_channel.send(DEFAULT_NUKE_GIF)
 
-        # CLEAN UP
         del pending_nukes[guild_id]
 
         await interaction.response.send_message("Nuke executed.", ephemeral=True)
@@ -413,3 +475,5 @@ async def nuke(ctx):
         await msg.delete()
     except:
         pass
+
+bot.run(os.getenv("TOKEN"))
