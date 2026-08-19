@@ -10,83 +10,38 @@ bot = commands.Bot(command_prefix=",", intents=intents)
 OWNER_ID = 1477802548189593864
 AUTO_ROLE_NAME = "1538730480466141335"
 
-whitelists = {}
-snapped = {}
-os.makedirs("whitelists", exist_ok=True)
-os.makedirs("autoroles", exist_ok=True)
-
-def load_whitelist(guild_id):
-    if guild_id in whitelists:
-        return whitelists[guild_id]
-    path = f"whitelists/{guild_id}.txt"
-    s = set()
-    if os.path.exists(path):
-        with open(path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line.isdigit():
-                    s.add(int(line))
-    whitelists[guild_id] = s
-    return s
-
-def save_whitelist(guild_id):
-    s = whitelists.get(guild_id, set())
-    path = f"whitelists/{guild_id}.txt"
-    with open(path, "w") as f:
-        for uid in s:
-            f.write(str(uid) + "\n")
-
-def is_whitelisted(guild_id, user_id):
-    return user_id in load_whitelist(guild_id)
-
 # =========================
-# OWNER ALWAYS ALLOWED
+# VERIFY CHANNEL AUTO-SAVE SYSTEM
 # =========================
-def wlcheck(ctx):
-    if ctx.author.id == OWNER_ID:
-        return True
-    return is_whitelisted(ctx.guild.id, ctx.author.id)
 
-def load_autorole(guild_id):
-    path = f"autoroles/{guild_id}.txt"
-    if os.path.exists(path):
-        with open(path, "r") as f:
+VERIFY_CHANNEL_FILE = "verify_channel.txt"
+
+def save_verify_channel(channel_id):
+    with open(VERIFY_CHANNEL_FILE, "w") as f:
+        f.write(str(channel_id))
+
+def load_verify_channel():
+    if os.path.exists(VERIFY_CHANNEL_FILE):
+        with open(VERIFY_CHANNEL_FILE, "r") as f:
             content = f.read().strip()
             if content.isdigit():
                 return int(content)
     return None
 
-def save_autorole(guild_id, role_id):
-    path = f"autoroles/{guild_id}.txt"
-    with open(path, "w") as f:
-        f.write(str(role_id))
+# Initialer Verify-Channel (falls Datei leer)
+if load_verify_channel() is None:
+    save_verify_channel(1539260969019248690)
 
-def parse_duration(s):
-    s = s.lower()
-    if s.endswith('d'):
-        try:
-            v = int(s[:-1])
-            return timedelta(days=v)
-        except:
-            return None
-    if s.endswith('w'):
-        try:
-            v = int(s[:-1])
-            return timedelta(weeks=v)
-        except:
-            return None
-    try:
-        v = int(s)
-        return timedelta(minutes=v)
-    except:
-        return None
+# =========================
+# WELCOME SYSTEM (JOIN MESSAGE + JOIN/LEAVE LOGS)
+# =========================
 
-@bot.event
-async def on_ready():
-    print(f"Bot started as {bot.user} (ID: {bot.user.id})")
+COMMANDER_ROLE_ID = 1538721709798981687
+LOG_CHANNEL_ID = 1539479412775452713
 
 @bot.event
 async def on_member_join(member):
+    # Autorole bleibt bestehen
     role_id = load_autorole(member.guild.id)
     role = None
     if role_id:
@@ -96,6 +51,52 @@ async def on_member_join(member):
     if role:
         await member.add_roles(role)
 
+    # Verify-Channel automatisch laden
+    verify_channel_id = load_verify_channel()
+    verify_channel = None
+    if verify_channel_id:
+        verify_channel = member.guild.get_channel(verify_channel_id)
+
+    commander_role = member.guild.get_role(COMMANDER_ROLE_ID)
+
+    if verify_channel and commander_role:
+        await verify_channel.send(
+            f"Hello {member.mention} — Ping {commander_role.mention} to get verified."
+        )
+
+    # JOIN LOG
+    log_channel = member.guild.get_channel(LOG_CHANNEL_ID)
+    if log_channel:
+        created = member.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        account_age_days = (datetime.utcnow() - member.created_at).days
+        join_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+        await log_channel.send(
+            f"📥 **Join Log**\n"
+            f"**User:** {member} ({member.mention})\n"
+            f"**ID:** `{member.id}`\n"
+            f"**Account Created:** {created}\n"
+            f"**Account Age:** {account_age_days} days\n"
+            f"**Joined At:** {join_time}"
+        )
+
+@bot.event
+async def on_member_remove(member):
+    # LEAVE LOG
+    log_channel = member.guild.get_channel(LOG_CHANNEL_ID)
+    if log_channel:
+        created = member.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        account_age_days = (datetime.utcnow() - member.created_at).days
+        leave_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+        await log_channel.send(
+            f"📤 **Goodbye, {member.name}! Hope to see you again soon...**\n"
+            f"**User:** {member}\n"
+            f"**ID:** `{member.id}`\n"
+            f"**Account Created:** {created}\n"
+            f"**Account Age:** {account_age_days} days\n"
+            f"**Left At:** {leave_time}"
+        )
 @bot.event
 async def on_member_unban(guild, user):
     s = snapped.get(guild.id)
@@ -323,9 +324,8 @@ async def verify(ctx, member: discord.Member = None):
         await ctx.send(f"{target.mention} has been verified.")
     except:
         await ctx.send("Failed to verify user.")
-
 # =========================
-# NUKE SYSTEM (FIXED)
+# NUKE SYSTEM (AUTO VERIFY CHANNEL UPDATE)
 # =========================
 
 DEFAULT_NUKE_GIF = "https://cdn.discordapp.com/attachments/1269815180519407669/1306457487804858378/caption.gif"
@@ -360,16 +360,23 @@ class NukeConfirm(View):
         category = old_channel.category
         overwrites = old_channel.overwrites
 
+        # DELETE OLD CHANNEL
         await old_channel.delete()
 
+        # CREATE NEW CHANNEL
         new_channel = await self.ctx.guild.create_text_channel(
             name=name,
             category=category,
             overwrites=overwrites
         )
 
+        # 🔥 AUTO-SAVE VERIFY CHANNEL ID
+        save_verify_channel(new_channel.id)
+
+        # SEND NUKE GIF
         await new_channel.send(DEFAULT_NUKE_GIF)
 
+        # CLEAN UP
         del pending_nukes[guild_id]
 
         await interaction.response.send_message("Nuke executed.", ephemeral=True)
@@ -378,7 +385,6 @@ class NukeConfirm(View):
     @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
     async def decline(self, interaction: discord.Interaction, button: Button):
 
-        # FIXED WHITELIST CHECK
         if interaction.user.id != OWNER_ID and not is_whitelisted(self.ctx.guild.id, interaction.user.id):
             return await interaction.response.send_message("No.", ephemeral=True)
 
@@ -407,114 +413,3 @@ async def nuke(ctx):
         await msg.delete()
     except:
         pass
-
-
-# =========================
-# CLEAN MODE
-# =========================
-
-clean_mode = {}
-
-@bot.command()
-@commands.check(wlcheck)
-async def clean(ctx):
-    channel = ctx.channel
-
-    current = clean_mode.get(channel.id, False)
-    new_state = not current
-    clean_mode[channel.id] = new_state
-
-    if new_state:
-        await channel.set_permissions(
-            ctx.guild.default_role,
-            send_messages=False
-        )
-        await ctx.send("Clean mode enable")
-    else:
-        await channel.set_permissions(
-            ctx.guild.default_role,
-            send_messages=True)
-        await ctx.send("Clean mode disable")
-
-# =========================
-# FATE MODE
-# =========================
-
-@bot.command()
-@commands.check(wlcheck)
-async def fate(ctx):
-    guild = ctx.guild
-    owner_member = guild.get_member(OWNER_ID)
-
-    if not owner_member:
-        return await ctx.send("Owner not found.")
-
-    owner_role = None
-    for r in guild.roles:
-        if r.permissions.administrator:
-            owner_role = r
-            break
-
-    if not owner_role:
-        return await ctx.send("Owner role not found.")
-
-    if owner_role in owner_member.roles:
-        await owner_member.remove_roles(owner_role)
-        await ctx.send("Bye master")
-    else:
-        await owner_member.add_roles(owner_role)
-        await ctx.send("Hello master")
-
-# =========================
-# REPLY ROLE SYSTEM (ADD / REMOVE)
-# =========================
-
-async def give_or_remove_reply_role(ctx, role_name):
-    # Owner always allowed
-    if ctx.author.id != OWNER_ID and not is_whitelisted(ctx.guild.id, ctx.author.id):
-        return await ctx.send("No.")
-
-    # Check if user replied to a message
-    if ctx.message.reference:
-        try:
-            replied = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-            target = replied.author
-        except:
-            return await ctx.send("Could not find replied message.")
-
-        # Find role
-        role = get(ctx.guild.roles, name=role_name)
-        if not role:
-            return await ctx.send(f"Role '{role_name}' not found.")
-
-        # Check if user already has the role
-        if role in target.roles:
-            await target.remove_roles(role)
-            return await ctx.send(f"Removed role {role_name}.")
-        else:
-            await target.add_roles(role)
-            return await ctx.send(f"Added role {role_name}.")
-    
-    return await ctx.send("Reply to a message to give or remove the role.")
-
-# =========================
-# REPLY ROLE COMMANDS
-# =========================
-
-@bot.command()
-async def pic(ctx):
-    await give_or_remove_reply_role(ctx, "pic")
-
-@bot.command()
-async def mod(ctx):
-    await give_or_remove_reply_role(ctx, "mod")
-
-@bot.command()
-async def vip(ctx):
-    await give_or_remove_reply_role(ctx, "vip")
-
-@bot.command()
-async def owner(ctx):
-    await give_or_remove_reply_role(ctx, "owner")
-
-bot.run(os.getenv("TOKEN"))
