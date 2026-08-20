@@ -474,6 +474,110 @@ async def nuke(ctx):
     try:
         await msg.delete()
     except:
-        pass
+        pass 
+
+# =========================
+# GIVEAWAY SYSTEM
+# =========================
+
+import asyncio
+import random
+
+last_gw_message = {}  # guild_id : message_id
+
+@bot.command()
+@commands.check(wlcheck)
+async def gw(ctx, item: str, time: str):
+    # Convert time (e.g. "1h", "30m")
+    seconds = None
+    if time.endswith("h"):
+        try:
+            seconds = int(time[:-1]) * 3600
+        except:
+            return await ctx.send("Invalid time format. Example: 1h / 30m")
+    elif time.endswith("m"):
+        try:
+            seconds = int(time[:-1]) * 60
+        except:
+            return await ctx.send("Invalid time format. Example: 1h / 30m")
+    else:
+        return await ctx.send("Time must end with 'h' or 'm'. Example: 1h / 30m")
+
+    # Giveaway embed
+    embed = discord.Embed(
+        title=f"🎉 Giveaway: {item}",
+        description=(
+            f"React with 🎉 to enter!\n\n"
+            f"**Prize:** {item}\n"
+            f"**Ends in:** {time}\n"
+            f"**Winner:** 1\n"
+            f"**Hosted by:** {ctx.author.mention}"
+        ),
+        color=discord.Color.gold()
+    )
+    embed.set_footer(text=f"Started at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+
+    msg = await ctx.send(embed=embed)
+    await msg.add_reaction("🎉")
+
+    # Save last giveaway message for reroll
+    last_gw_message[ctx.guild.id] = msg.id
+
+    # Wait until giveaway ends
+    await asyncio.sleep(seconds)
+
+    # Fetch updated message
+    msg = await ctx.channel.fetch_message(msg.id)
+    users = []
+
+    for reaction in msg.reactions:
+        if reaction.emoji == "🎉":
+            async for user in reaction.users():
+                if not user.bot:
+                    users.append(user)
+
+    if len(users) == 0:
+        return await ctx.send("Nobody entered the giveaway.")
+
+    # Pick winner
+    winner = random.choice(users)
+
+    await ctx.send(
+        f"🎉 **Giveaway Ended!**\n"
+        f"User {winner.mention} won the giveaway!"
+    )
+
+
+@bot.command()
+@commands.check(wlcheck)
+async def gw_reroll(ctx):
+    guild_id = ctx.guild.id
+
+    if guild_id not in last_gw_message:
+        return await ctx.send("There is no giveaway to reroll.")
+
+    try:
+        msg = await ctx.channel.fetch_message(last_gw_message[guild_id])
+    except:
+        return await ctx.send("Could not find the giveaway message.")
+
+    users = []
+
+    # Collect users who reacted with 🎉
+    for reaction in msg.reactions:
+        if reaction.emoji == "🎉":
+            async for user in reaction.users():
+                if not user.bot:
+                    users.append(user)
+
+    if len(users) == 0:
+        return await ctx.send("Nobody entered the giveaway, reroll not possible.")
+
+    # Pick new winner
+    winner = random.choice(users)
+
+    await ctx.send(
+        f"🔄 **Giveaway Reroll!**\n"
+        f"User {winner.mention} won the giveaway!"
 
 bot.run(os.getenv("TOKEN"))
