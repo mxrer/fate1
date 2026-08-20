@@ -503,7 +503,6 @@ async def gw(ctx, item: str, time: str):
     else:
         return await ctx.send("Time must end with 'h' or 'm'. Example: 1h / 30m")
 
-    # Giveaway embed
     embed = discord.Embed(
         title=f"🎉 Giveaway: {item}",
         description=(
@@ -520,13 +519,10 @@ async def gw(ctx, item: str, time: str):
     msg = await ctx.send(embed=embed)
     await msg.add_reaction("🎉")
 
-    # Save last giveaway message for reroll
     last_gw_message[ctx.guild.id] = msg.id
 
-    # Wait until giveaway ends
     await asyncio.sleep(seconds)
 
-    # Fetch updated message
     msg = await ctx.channel.fetch_message(msg.id)
     users = []
 
@@ -539,13 +535,9 @@ async def gw(ctx, item: str, time: str):
     if len(users) == 0:
         return await ctx.send("Nobody entered the giveaway.")
 
-    # Pick winner
     winner = random.choice(users)
 
-    await ctx.send(
-        f"🎉 **Giveaway Ended!**\n"
-        f"User {winner.mention} won the giveaway!"
-    )
+    await ctx.send(f"🎉 **Giveaway Ended!** User {winner.mention} won the giveaway!")
 
 
 @bot.command()
@@ -563,7 +555,6 @@ async def gw_reroll(ctx):
 
     users = []
 
-    # Collect users who reacted with 🎉
     for reaction in msg.reactions:
         if reaction.emoji == "🎉":
             async for user in reaction.users():
@@ -573,11 +564,9 @@ async def gw_reroll(ctx):
     if len(users) == 0:
         return await ctx.send("Nobody entered the giveaway, reroll not possible.")
 
-    # Pick new winner
     winner = random.choice(users)
 
-    await ctx.send(
-        f"🔄 **Giveaway Reroll!**\n"
-        f"User {winner.mention} won the giveaway!"
+    await ctx.send(f"🔄 **Giveaway Reroll!** User {winner.mention} won the giveaway!")
+
 
 bot.run(os.getenv("TOKEN"))
