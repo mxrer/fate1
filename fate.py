@@ -488,6 +488,11 @@ last_gw_message = {}  # guild_id : message_id
 @bot.command()
 @commands.check(wlcheck)
 async def gw(ctx, item: str, time: str):
+
+    # 🔥 CHECK: Normal WL oder GW-WL müssen erlaubt sein
+    if not (is_gw_whitelisted(ctx.guild.id, ctx.author.id) or is_whitelisted(ctx.guild.id, ctx.author.id)):
+        return await ctx.send("You are not allowed to start giveaways.")
+
     # Convert time (e.g. "1h", "30m")
     seconds = None
     if time.endswith("h"):
@@ -543,6 +548,11 @@ async def gw(ctx, item: str, time: str):
 @bot.command()
 @commands.check(wlcheck)
 async def gw_reroll(ctx):
+
+    # 🔥 CHECK: Normal WL oder GW-WL müssen erlaubt sein
+    if not (is_gw_whitelisted(ctx.guild.id, ctx.author.id) or is_whitelisted(ctx.guild.id, ctx.author.id)):
+        return await ctx.send("You are not allowed to reroll giveaways.")
+
     guild_id = ctx.guild.id
 
     if guild_id not in last_gw_message:
@@ -567,6 +577,39 @@ async def gw_reroll(ctx):
     winner = random.choice(users)
 
     await ctx.send(f"🔄 **Giveaway Reroll!** User {winner.mention} won the giveaway!")
+
+# =========================
+# GIVEAWAY WHITELIST SYSTEM
+# =========================
+
+gw_whitelist = {}  # guild_id : set(user_ids)
+
+def load_gw_whitelist(guild_id):
+    if guild_id not in gw_whitelist:
+        gw_whitelist[guild_id] = set()
+    return gw_whitelist[guild_id]
+
+def is_gw_whitelisted(guild_id, user_id):
+    return user_id in load_gw_whitelist(guild_id)
+
+@bot.command()
+@commands.check(wlcheck)
+async def gw_wl(ctx, action: str, member: discord.Member):
+    guild_id = ctx.guild.id
+    wl = load_gw_whitelist(guild_id)
+
+    if action.lower() == "add":
+        wl.add(member.id)
+        await ctx.send(f"{member.mention} has been **added** to the Giveaway Whitelist.")
+    elif action.lower() == "remove":
+        if member.id in wl:
+            wl.remove(member.id)
+            await ctx.send(f"{member.mention} has been **removed** from the Giveaway Whitelist.")
+        else:
+            await ctx.send("User is not in the Giveaway Whitelist.")
+    else:
+        await ctx.send("Use: `,gw wl add @user` or `,gw wl remove @user`")
+
 
 
 bot.run(os.getenv("TOKEN"))
