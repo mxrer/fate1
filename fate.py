@@ -598,18 +598,24 @@ async def gw_wl(ctx, action: str, member: discord.Member):
     guild_id = ctx.guild.id
     wl = load_gw_whitelist(guild_id)
 
-    if action.lower() == "add":
+    action = action.lower()
+
+    if action == "add":
         wl.add(member.id)
         await ctx.send(f"{member.mention} has been **added** to the Giveaway Whitelist.")
-    elif action.lower() == "remove":
+    elif action == "remove":
         if member.id in wl:
             wl.remove(member.id)
             await ctx.send(f"{member.mention} has been **removed** from the Giveaway Whitelist.")
         else:
-            await ctx.send("User is not in the Giveaway Whitelist.")
+            await ctx.send("This user is not in the Giveaway Whitelist.")
     else:
-        await ctx.send("Use: `,gw wl add @user` or `,gw wl remove @user`")
-
+        await ctx.send(
+            "Invalid action.\n"
+            "Use:\n"
+            "`-gw wl add @user`\n"
+            "`-gw wl remove @user`"
+        )
 
 
 bot.run(os.getenv("TOKEN"))
